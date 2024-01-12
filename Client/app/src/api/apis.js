@@ -10,8 +10,13 @@ class ApiService {
     }
  
     getTableData = async () => {
+        const headers = {
+            'create': 'password',
+        }
         try {
-            const response = await this.instance.get(`/get-data`);
+            const response = await this.instance.get(`/get-data`,
+            {headers}
+            );
             return response;
         } catch (error) {
             throw error;
@@ -20,7 +25,7 @@ class ApiService {
  
     userdetailsform = async (data) => {
       const headers = {
-            'create': 'password',
+            'authorization': 'your_access_token',
         }
         try {
             const response = await this.instance.post(

@@ -1,77 +1,90 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const { FormData }  = require('./Mongo/index')
+
 const cors = require('cors');
+const bcrypt = require('bcrypt');
+const joi = require('joi');
+
 const app = express();
-const joi = require('joi')
-const path = require('path');
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
-function isAuth(req, res, next) {
-  const auth = req.headers.create;
-  // console.log(auth,"req" )
-  if (auth === 'password') {
-    next();
-  } else {
+const mongoose = require('mongoose');
+
+mongoose.connect('mongodb://localhost:27017/your-database-name', {
+  // useNewUrlParser: true,
+  // useUnifiedTopology: true,
+});
+
+const formDataSchema = new mongoose.Schema({
+  FirstName: String,
+  LastName: String,
+  EmailAdress: String,
+  PhoneNumber: Number,
+  Adress: String,
+  PinCode: Number,
+  Country: String,
+  State: String,
+  City: String,
+  Remarks: String,
+});
+
+const SignUpSchema = new mongoose.Schema({
+  username: { type: String, unique: true, required: true },
+  password: { type: String, required: true },
+});
+const SignUpData = mongoose.model('SignUpData', SignUpSchema);
+// console.log(mongoose.model('FormData', formDataSchema),"89");
+const FormData = mongoose.model('FormData', formDataSchema);
+
+
+const validateAccessToken = (token) => {
+  return token === 'your_access_token';
+};
+
+//this is authentication part
+const isAuth=(req, res, next)=> {
+  const accessToken = req.headers.authorization;
+
+  if (!accessToken || !validateAccessToken(accessToken)) {
     res.status(401);
     res.send('Access forbidden');
+  } else {
+    next();
   }
 }
 
+const formDataValidationSchema = joi.object({  
+  FirstName: joi.string().required(),
+  LastName: joi.string().required(),
+  EmailAdress: joi.string().email().required(),
+  PhoneNumber: joi.number().required(),
+  Adress: joi.string().required(),
+  PinCode: joi.number().required(),
+  Country: joi.string().required(),
+  State: joi.string().required(),
+  City: joi.string().required(),
+  Remarks: joi.string(),
+});
 
+
+
+//post api for requesting the data from frontend and storing that data in mongodb server
 app.post('/api/submit-form',isAuth, async (req, res) => {
-  console.log(req.body,"body");
-  console.log(req.query,"query")
   try {
+    const validationResult = formDataValidationSchema.validate(req.body);
+    console.log(validationResult,"validationResult");
+    if (validationResult.error) {
+      return res.status(400).json({ success: false, error: validationResult.error.message });
+    }
     const formData = new FormData(req.body);
     await formData.save();
     res.json({ success: true, message: 'Form data submitted successfully!',res:req.body });
   } catch (error) {
-    // console.error('Error during form submission:', error);
     res.status(400).json({ success: false, error: 'Invalid data format' });
   }
 });
-app.post('/api/new-post',async (req,res)=>{
-  // console.log(req.body)
-  // console.log(req.query)
 
-   res.send({success:true,res:req.body})
-
-  // res.status(201).json({success:true,res:req.body})
-})
-
-app.get('/api/personal',async (req,res)=>{
-
-  try{
-    // res.send([
-    //   {
-    //     "firstName": "Marcos",
-    //     "lastName": "Silva",
-    //     "email": "marcos.henrique@toptal.com",
-    //     "password": "Y+XZEaR7J8xAQCc37nf1rw==$p8b5ykUx6xpC6k8MryDaRmXDxncLumU9mEVabyLdpotO66Qjh0igVOVerdqAh+CUQ4n/E0z48mp8SDTpX2ivuQ==",
-    //     "permissionLevel": 1,
-    //     "id": "5b02c5c84817bf28049e58a3"
-    //  },
-    //   {2:"test2"},
-    //   {3:"test3"},
-    //   {4:"test4"},
-    //   {5:"test5"},
-    //  ])
-    const filePath = path.join(__dirname, 'public', 'text.txt');
-    res.sendFile(filePath, 'text.txt', (err) => {
-      if (err) {
-        // Handle errors, for example, file not found
-        console.error(err);
-        res.status(500).send('Internal Server Error');
-      }
-    });
-  }catch(error){
-    res.status(500).json({error:"internal server error"})
-  }
-    
-})
-
+//get api for fetching data from monodb database
 app.get('/api/get-data', async (req, res) => {
   try {
     const data = await FormData.find();
@@ -81,12 +94,10 @@ app.get('/api/get-data', async (req, res) => {
   }
 });
 
-app.delete('/api/delete-data/:id', async (req, res) => {
- 
-  // console.log(req.query)
+//delete api for the deletion of table row from there id
+app.delete('/api/delete-data/:id',isAuth, async (req, res) => {
   try {
     const { id } = req.params;
-  
     console.log(req.params,"params" )
     const result = await FormData.findByIdAndDelete(id);
     if (result) {
@@ -98,19 +109,60 @@ app.delete('/api/delete-data/:id', async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 });
-app.put('/api/update-data/:id', async (req, res) => {
+
+//put api for the updation of data in table
+app.put('/api/update-data/:id',isAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const updatedData = req.body;
     await FormData.findByIdAndUpdate(id, updatedData);
     res.json({ success: true, message: 'Data updated successfully!' });
   } catch (error) {
-    // console.error('Error updating data:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
+app.post('/api/signup', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const existingUser = await SignUpData.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: 'Username already exists' });
+    }
+
+    await SignUpData.create({ username, password });
+
+    res.json({ success: true, message: 'Signup successful' });
+  } catch (error) {
+    console.error('Error during signup:', error);
     res.status(500).json({ success: false, error: 'Internal Server Error' });
   }
 });
 
+// Login API
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = await SignUpData.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Invalid username or password' });
+    }
+
+    if (password !== user.password) {
+      return res.status(401).json({ success: false, error: 'Invalid username or password' });
+    }
+
+    res.json({ success: true, message: 'Login successful' });
+  } catch (error) {
+    console.error('Error during login:', error);
+    res.status(500).json({ success: false, error: 'Internal Server Error' });
+  }
+});
+
+
+// for starting the server
 const port = 5000;
 app.listen(port, () => {
-  // console.log(`Server is running on port ${port}`);
+  console.log(`Server is running on port ${port}`);
 });

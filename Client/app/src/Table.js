@@ -13,7 +13,6 @@ function TableData() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
   const [tableItems, setTableItems] = useState([]);
-  const [first,setFirst]= useState("")
 
 const handleUpdateClick = (record) => {
   setSelectedRecord(record);
@@ -25,10 +24,11 @@ const handleCancel = () => {
 };
 const handleUpdate = async (values) => {
   try {
-    // Send an API request to update the data
-    await axios.put(`${url}/update-data/${selectedRecord._id}`, values);
-
-    // Close the modal and fetch updated data
+    await axios.put(`${url}/update-data/${selectedRecord._id}`, values,
+    {headers: {
+      'authorization': 'your_access_token',
+    },}
+    );
     setIsModalVisible(false);
     fetchData();
     message.success("Data updated successfully!");
@@ -115,23 +115,26 @@ const handleUpdate = async (values) => {
 
   useEffect(() => {
     fetchData();
-    firstApi()
   }, []);
   const fetchData = async () => {
     try {
+     
       const response = await axios.get(`${url}/get-data`);
       setTableItems(response.data);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
   };
-  const firstApi = async()=>{
- const res =(await axios.get(`${url}/personal`))
-      console.log(res,"res")
-  } 
+  
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`${url}/delete-data/${id}`);
+      await axios.delete(`${url}/delete-data/${id}`,
+      {
+        headers:{
+          'authorization': 'your_access_token',
+        }
+      }
+      );
       fetchData();
       message.success("Data deleted successfully!");
     } catch (error) {
@@ -143,6 +146,9 @@ const handleUpdate = async (values) => {
   return (
     <div>
       <Row justify="space-between" align="middle">
+      <Col span={24}><Button onClick={()=>{
+        navigate("/")
+      }}>LogOut</Button></Col>
         <Col>
           <h1>Table Data </h1>
         </Col>

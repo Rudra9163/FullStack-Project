@@ -10,16 +10,16 @@ import { url } from "./Custom/api.url";
 const MyForm = () => {
   const navigate = useNavigate();
   const apiservice = new ApiService()
-  const [newInput, setNewInput] = useState("");
 
   
   const handleSubmit = async (values) => {
+    console.log('Form Values:', values);
     const response = await apiservice.userdetailsform(values);
     try {
-      console.log(response.data);
-      navigate("/");
+      console.log('API Response:', response.data);
+      navigate("/Table");
     } catch (error) {
-      console.log(error);
+      console.log('Error during API response handling:', error);
     }
     // try {
     //   const response = await axios.post(
@@ -40,24 +40,11 @@ const MyForm = () => {
    
   };
 
-  const handleNewSubmit = async(values)=>{
-   try {
-      const response = await axios.post(
-        `${url}/new-post`,{ yourFieldName: newInput },
-        
-      );
-      console.log(response.data);
-      message.success("Form submitted successfully!");
-    } catch (error) {
-      console.error("Error during form submission:", error);
-      message.error("Error submitting form. Please try again.");
-    }
-  }
 
   return (
     <>
     <div className="my-form-container">
-    <button onClick={()=> navigate("/")}>watch table</button>
+    <button onClick={()=> navigate("/Table")}>watch table</button>
       <h4 style={{ padding: "20px" }}>Fill your details</h4>
       <Formik
         initialValues={{
@@ -107,15 +94,7 @@ const MyForm = () => {
         )}
       </Formik>
     </div>
-    <div>
-    <input
-          type="text"
-          value={newInput}
-          onChange={(e) => setNewInput(e.target.value)}
-          placeholder="Enter new data"
-        />
-      <button onClick={handleNewSubmit}>new</button>
-    </div>
+   
     </>
   );
 };
